@@ -45,7 +45,7 @@ API que permite buscar, filtrar e armazenar vagas de emprego do LinkedIn, além 
 - Cache automático de resultados (TTL de 30 minutos)
 - Histórico de buscas por usuário
 
-### 👥 Monitoramento de Recrutadores *(novo)*
+### 👥 Monitoramento de Recrutadores 
 - Cadastro de perfis de recrutadores para monitorar
 - Varredura automática e agendada das atividades públicas de cada recrutador
 - Detecção de novas vagas postadas pelos recrutadores monitorados
@@ -125,7 +125,7 @@ sudo systemctl start redis
 
 ```bash
 # Clone o repositório
-git clone https://github.com/seu-usuario/linkedin-jobs-api.git
+git clone https://github.com/seu-usuario/Api_Jobs.git
 cd linkedin-jobs-api
 
 # Instale as dependências
