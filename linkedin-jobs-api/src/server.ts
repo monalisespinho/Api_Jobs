@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import { jwtPlugin } from './plugins/jwt'
 import { redisPlugin } from './plugins/redis'
 import { rateLimitPlugin } from './plugins/rate-limit'
+import { authRoutes } from './modules/auth/auth.routes' 
 
 const app = Fastify({
   logger: true // mostra logs no terminal
@@ -11,6 +12,7 @@ const app = Fastify({
 app.register(jwtPlugin)
 app.register(redisPlugin)
 app.register(rateLimitPlugin)
+app.register(authRoutes)
 
 // Rota de health check
 app.get('/health', async () => {
