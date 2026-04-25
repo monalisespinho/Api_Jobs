@@ -1,25 +1,25 @@
 # 🔍 LinkedIn Jobs API
 
-> API REST para busca de vagas no LinkedIn — construída com Fastify, Playwright, PostgreSQL e Redis.
+API REST para busca de vagas e monitoramento de recrutadores no LinkedIn — construída com Fastify, Playwright, PostgreSQL, Redis e Node-cron.
 
-![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?style=flat-square&logo=node.js&logoColor=white)
-![Fastify](https://img.shields.io/badge/Fastify-5.x-000000?style=flat-square&logo=fastify&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-7.x-DC382D?style=flat-square&logo=redis&logoColor=white)
-![Playwright](https://img.shields.io/badge/Playwright-1.x-2EAD33?style=flat-square&logo=playwright&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-22.x-green)
+![Fastify](https://img.shields.io/badge/Fastify-latest-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
+![Redis](https://img.shields.io/badge/Redis-7-red)
+![Playwright](https://img.shields.io/badge/Playwright-latest-green)
 
 ---
 
-## ⚠️ Aviso
-
-Este projeto utiliza web scraping e é destinado **exclusivamente para fins educacionais e de estudo**. O uso de scraping pode violar os [Termos de Serviço do LinkedIn](https://www.linkedin.com/legal/user-agreement). Use com responsabilidade.
+> ⚠️ **Aviso**
+> Este projeto utiliza web scraping e é destinado exclusivamente para fins educacionais e de estudo. O uso de scraping pode violar os Termos de Serviço do LinkedIn. Use com responsabilidade.
 
 ---
 
 ## 📋 Índice
 
 - [Visão Geral](#visão-geral)
+- [Funcionalidades](#funcionalidades)
 - [Arquitetura](#arquitetura)
 - [Pré-requisitos](#pré-requisitos)
 - [Instalação](#instalação)
@@ -34,13 +34,25 @@ Este projeto utiliza web scraping e é destinado **exclusivamente para fins educ
 
 ## Visão Geral
 
-API que permite buscar, filtrar e armazenar vagas de emprego do LinkedIn. Utiliza Playwright para scraping, cache com Redis para evitar buscas repetidas, e PostgreSQL para persistência de dados e autenticação de usuários.
+API que permite buscar, filtrar e armazenar vagas de emprego do LinkedIn, além de monitorar automaticamente as postagens de recrutadores específicos. Utiliza Playwright para scraping, cache com Redis para evitar buscas repetidas, PostgreSQL para persistência de dados e autenticação de usuários, e Node-cron para agendamento automático do monitoramento.
 
-**Principais funcionalidades:**
-- Autenticação com JWT
+---
+
+## Funcionalidades
+
+### 🔎 Busca de Vagas
 - Busca de vagas por palavra-chave, localização e filtros
 - Cache automático de resultados (TTL de 30 minutos)
 - Histórico de buscas por usuário
+
+### 👥 Monitoramento de Recrutadores *(novo)*
+- Cadastro de perfis de recrutadores para monitorar
+- Varredura automática e agendada das atividades públicas de cada recrutador
+- Detecção de novas vagas postadas pelos recrutadores monitorados
+- Cache de resultados por perfil (TTL de 10 minutos)
+
+### 🔐 Autenticação
+- Autenticação com JWT
 - Rate limiting por IP e por usuário
 
 ---
@@ -49,17 +61,20 @@ API que permite buscar, filtrar e armazenar vagas de emprego do LinkedIn. Utiliz
 
 ```
 Client → Fastify API → Scraper (Playwright) → LinkedIn
-                ↕               ↕
-           PostgreSQL         Redis
+              ↕               ↕
+         PostgreSQL         Redis
+              ↑
+         Node-cron (monitoramento agendado de recrutadores)
 ```
 
-| Camada       | Tecnologia              | Função                          |
-|--------------|-------------------------|---------------------------------|
-| API          | Fastify + TypeScript    | Roteamento, auth, validação     |
-| Scraping     | Playwright              | Coleta de vagas no LinkedIn     |
-| Cache        | Redis                   | Cache de buscas (TTL 30 min)    |
-| Banco        | PostgreSQL + Prisma     | Usuários e histórico            |
-| Testes       | Vitest                  | Unit e E2E                      |
+| Camada | Tecnologia | Função |
+|--------|-----------|--------|
+| API | Fastify + TypeScript | Roteamento, auth, validação |
+| Scraping | Playwright | Coleta de vagas e posts de recrutadores |
+| Cache | Redis | Cache de buscas (TTL 30 min) e recrutadores (TTL 10 min) |
+| Banco | PostgreSQL + Prisma | Usuários, histórico e recrutadores monitorados |
+| Agendamento | Node-cron | Varredura periódica de recrutadores |
+| Testes | Vitest | Unit e E2E |
 
 ---
 
@@ -67,9 +82,9 @@ Client → Fastify API → Scraper (Playwright) → LinkedIn
 
 Certifique-se de ter instalado:
 
-- [Node.js](https://nodejs.org/) >= 22.x
-- [PostgreSQL](https://www.postgresql.org/download/) >= 16
-- [Redis](https://redis.io/docs/install/) >= 7
+- Node.js >= 22.x
+- PostgreSQL >= 16
+- Redis >= 7
 - npm >= 10
 
 ### Instalando PostgreSQL (local)
@@ -86,8 +101,7 @@ sudo apt install postgresql postgresql-contrib
 sudo systemctl start postgresql
 ```
 
-**Windows:**
-Baixe o instalador em [postgresql.org/download/windows](https://www.postgresql.org/download/windows/)
+**Windows:** Baixe o instalador em [postgresql.org/download/windows](https://postgresql.org/download/windows)
 
 ### Instalando Redis (local)
 
@@ -103,8 +117,7 @@ sudo apt install redis-server
 sudo systemctl start redis
 ```
 
-**Windows:**
-Use o [WSL2](https://redis.io/docs/install/install-redis/install-redis-on-windows/) ou [Redis for Windows](https://github.com/microsoftarchive/redis/releases).
+**Windows:** Use o WSL2 ou [Redis for Windows](https://github.com/microsoftarchive/redis).
 
 ---
 
@@ -151,6 +164,9 @@ REDIS_URL=redis://localhost:6379
 # Scraper
 SCRAPER_HEADLESS=true
 SCRAPER_TIMEOUT=30000
+
+# Agendamento de recrutadores (padrão: todo dia às 8h)
+RECRUITER_CRON_SCHEDULE="0 8 * * *"
 ```
 
 ### Criando o banco de dados
@@ -186,36 +202,48 @@ A API estará disponível em `http://localhost:3000`.
 
 ### Autenticação
 
-| Método | Rota             | Descrição              | Auth |
-|--------|------------------|------------------------|------|
-| POST   | `/auth/register` | Criar conta            | ❌   |
-| POST   | `/auth/login`    | Login e obter JWT      | ❌   |
-| GET    | `/auth/me`       | Dados do usuário atual | ✅   |
+| Método | Rota | Descrição | Auth |
+|--------|------|-----------|------|
+| POST | `/auth/register` | Criar conta | ❌ |
+| POST | `/auth/login` | Login e obter JWT | ❌ |
+| GET | `/auth/me` | Dados do usuário atual | ✅ |
 
 ### Vagas
 
-| Método | Rota              | Descrição                        | Auth |
-|--------|-------------------|----------------------------------|------|
-| GET    | `/jobs/search`    | Buscar vagas no LinkedIn         | ✅   |
-| GET    | `/jobs/:id`       | Detalhes de uma vaga             | ✅   |
-| GET    | `/jobs/history`   | Histórico de buscas do usuário   | ✅   |
+| Método | Rota | Descrição | Auth |
+|--------|------|-----------|------|
+| GET | `/jobs/search` | Buscar vagas no LinkedIn | ✅ |
+| GET | `/jobs/:id` | Detalhes de uma vaga | ✅ |
+| GET | `/jobs/history` | Histórico de buscas do usuário | ✅ |
 
-#### Exemplo de busca
+### Recrutadores *(novo)*
 
+| Método | Rota | Descrição | Auth |
+|--------|------|-----------|------|
+| POST | `/recruiters` | Cadastrar recrutador para monitorar | ✅ |
+| GET | `/recruiters` | Listar recrutadores cadastrados | ✅ |
+| DELETE | `/recruiters/:id` | Remover recrutador do monitoramento | ✅ |
+| GET | `/recruiters/:id/jobs` | Vagas encontradas de um recrutador | ✅ |
+
+---
+
+### Exemplos de uso
+
+**Busca de vagas por keyword:**
 ```
 GET /jobs/search?keyword=backend&location=São Paulo&remote=true&limit=20
 ```
 
-**Query params disponíveis:**
+Query params disponíveis:
 
-| Parâmetro  | Tipo    | Descrição                                 |
-|------------|---------|-------------------------------------------|
-| `keyword`  | string  | Cargo ou tecnologia (ex: `node developer`)|
-| `location` | string  | Cidade ou país                            |
-| `remote`   | boolean | Apenas vagas remotas                      |
-| `limit`    | number  | Quantidade de resultados (padrão: 10)     |
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| keyword | string | Cargo ou tecnologia (ex: node developer) |
+| location | string | Cidade ou país |
+| remote | boolean | Apenas vagas remotas |
+| limit | number | Quantidade de resultados (padrão: 10) |
 
-**Resposta:**
+Resposta:
 ```json
 {
   "cached": false,
@@ -229,6 +257,46 @@ GET /jobs/search?keyword=backend&location=São Paulo&remote=true&limit=20
       "remote": true,
       "url": "https://www.linkedin.com/jobs/view/3942849234",
       "postedAt": "2025-03-01T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+**Cadastrar recrutador:**
+```
+POST /recruiters
+```
+```json
+{
+  "name": "Ana Silva",
+  "linkedinUrl": "https://www.linkedin.com/in/ana-silva"
+}
+```
+
+---
+
+**Vagas encontradas de um recrutador:**
+```
+GET /recruiters/abc-123/jobs
+```
+
+Resposta:
+```json
+{
+  "recruiter": {
+    "id": "abc-123",
+    "name": "Ana Silva",
+    "linkedinUrl": "https://www.linkedin.com/in/ana-silva"
+  },
+  "total": 3,
+  "jobs": [
+    {
+      "id": "xyz-456",
+      "title": "Desenvolvedor Backend Sênior",
+      "url": "https://www.linkedin.com/posts/ana-silva_...",
+      "postedAt": "2025-04-01T09:00:00.000Z"
     }
   ]
 }
@@ -265,9 +333,15 @@ linkedin-jobs-api/
 │   │   │   ├── jobs.routes.ts
 │   │   │   ├── jobs.service.ts
 │   │   │   └── jobs.schema.ts
+│   │   ├── recruiters/               ← novo
+│   │   │   ├── recruiters.routes.ts
+│   │   │   ├── recruiters.service.ts
+│   │   │   └── recruiters.schema.ts
 │   │   └── scraper/
 │   │       ├── scraper.service.ts
 │   │       └── scraper.parser.ts
+│   ├── jobs/
+│   │   └── check-recruiters.job.ts   ← novo (agendamento com node-cron)
 │   ├── plugins/
 │   │   ├── jwt.ts
 │   │   ├── redis.ts
@@ -299,4 +373,4 @@ linkedin-jobs-api/
 
 ## Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+Este projeto está sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
